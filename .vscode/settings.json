@@ -1,0 +1,33 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "biomejs.biome",
+  // 表示だけ折り返し（実改行は入れない）
+  "editor.wordWrap": "on",
+  "editor.wordWrapColumn": 1,
+  "editor.wrappingIndent": "same",
+  // 言語別で Biome を固定（推測を切る）
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.detectIndentation": false
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.detectIndentation": false
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.detectIndentation": false
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2,
+    "editor.detectIndentation": false
+  },
+  // YAML は手動整形（フォーマッタを指定しない）
+  "[yaml]": {
+    "editor.defaultFormatter": null,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 2
+  }
+}
