@@ -25,13 +25,22 @@
     "lineWidth": 100
   },
   "linter": {
-    "enabled": true
+    "rules": {
+      "style": {
+        "useImportType": "off"
+      }
+    }
   },
   "assist": {
     "actions": {
       "source": {
         "organizeImports": "on"
       }
+    }
+  },
+  "javascript": {
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
     }
   }
 }
