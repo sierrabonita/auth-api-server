@@ -41,12 +41,12 @@ export class AuthService {
     });
 
     if (!tokenRecord) {
-      throw new UnauthorizedException("Invalid refresh token");
+      throw new UnauthorizedException("Refresh token is not recognized");
     }
 
     const matches = await bcrypt.compare(rawRefreshToken, tokenRecord.tokenHash);
     if (!matches) {
-      throw new UnauthorizedException("Refresh token expired");
+      throw new UnauthorizedException("Refresh token is not recognized");
     }
 
     const user = await this.usersService.findById(payload.sub);
