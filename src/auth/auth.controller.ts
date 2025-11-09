@@ -3,6 +3,7 @@ import { UsersService } from "../users/users.service";
 import { AuthService } from "./auth.service";
 import { CurrentUser } from "./decorators/current-user.decorator";
 import { LoginDto } from "./dto/login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { SignupDto } from "./dto/signup.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
@@ -13,6 +14,11 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
+  @Post("refresh")
+  refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshTokens(dto.refreshToken);
+  }
+
   @Post("signup")
   signup(@Body() dto: SignupDto) {
     return this.authService.signup(dto);
@@ -21,6 +27,12 @@ export class AuthController {
   @Post("login")
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("logout")
+  async logout(@CurrentUser() user: { userId: string }) {
+    return this.authService.logout(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
