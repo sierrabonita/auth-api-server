@@ -2,16 +2,16 @@ import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
-import { PrismaService } from "../prisma/prisma.service";
 import { UsersService } from "../users/users.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { RefreshTokenRepository } from "./repositories/refresh-token.repository";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    private readonly prisma: PrismaService,
+    private readonly refreshTokenRepository: RefreshTokenRepository,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
   ) {}
@@ -30,15 +30,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid refresh token");
     }
 
-    const tokenRecord = await this.prisma.refreshToken.findFirst({
-      where: {
-        userId: payload.sub,
-        revokedAt: null,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+    const tokenRecord = await this.refreshTokenRepository.findLatestValidByUser(payload.sub);
 
     if (!tokenRecord) {
       throw new UnauthorizedException("Refresh token is not recognized");
@@ -110,15 +102,7 @@ export class AuthService {
       throw new BadRequestException("User id is required");
     }
 
-    await this.prisma.refreshToken.updateMany({
-      where: {
-        userId,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
-    });
+    await this.refreshTokenRepository.revokeAllForUser(userId);
 
     return { success: true };
   }
@@ -160,20 +144,16 @@ export class AuthService {
   private async saveRefreshToken(userId: string, refreshToken: string) {
     const hash = await bcrypt.hash(refreshToken, 10);
 
-    await this.prisma.refreshToken.deleteMany({
-      where: { userId },
-    });
+    await this.refreshTokenRepository.deleteExpired();
 
     const decoded = this.jwtService.decode(refreshToken) as { exp?: number };
     if (!decoded?.exp) return;
 
     const expiresAt = new Date(decoded.exp * 1000);
-    await this.prisma.refreshToken.create({
-      data: {
-        userId,
-        tokenHash: hash,
-        expiresAt,
-      },
+    await this.refreshTokenRepository.create({
+      userId,
+      tokenHash: hash,
+      expiresAt,
     });
   }
 }
