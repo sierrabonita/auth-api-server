@@ -16,50 +16,6 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  async refreshTokens(rawRefreshToken: string) {
-    if (!rawRefreshToken) {
-      throw new UnauthorizedException("Refresh token is required");
-    }
-
-    let payload: { sub: string; email: string; role: string };
-    try {
-      payload = await this.jwtService.verifyAsync(rawRefreshToken, {
-        secret: this.getRefreshSecret(),
-      });
-    } catch {
-      throw new UnauthorizedException("Invalid refresh token");
-    }
-
-    const tokenRecord = await this.refreshTokenRepository.findLatestValidByUser(payload.sub);
-
-    if (!tokenRecord) {
-      throw new UnauthorizedException("Refresh token is not recognized");
-    }
-
-    const matches = await bcrypt.compare(rawRefreshToken, tokenRecord.tokenHash);
-    if (!matches) {
-      throw new UnauthorizedException("Refresh token is not recognized");
-    }
-
-    const user = await this.usersService.findById(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException("User no longer exists");
-    }
-
-    const tokens = await this.issueTokens(user.id, user.email, user.role);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      ...tokens,
-    };
-  }
-
   async signup(dto: SignupDto) {
     const existing = await this.usersService.findByEmail(dto.email);
     if (existing) throw new BadRequestException("Email is already in use");
@@ -103,8 +59,42 @@ export class AuthService {
     }
 
     await this.refreshTokenRepository.revokeAllForUser(userId);
-
     return { success: true };
+  }
+
+  async refreshTokens(rawRefreshToken: string) {
+    if (!rawRefreshToken) {
+      throw new UnauthorizedException("Refresh token is required");
+    }
+
+    let payload: { sub: string; email: string; role: string };
+    try {
+      payload = await this.jwtService.verifyAsync(rawRefreshToken, {
+        secret: this.getRefreshSecret(),
+      });
+    } catch {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    // 多セッション前提：全有効トークンから一致を探索
+    const candidates = await this.refreshTokenRepository.findValidByUser(payload.sub);
+    const matched = await this.findMatchingRecord(candidates, rawRefreshToken);
+    if (!matched) throw new UnauthorizedException("Refresh token is not recognized");
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) throw new UnauthorizedException("User no longer exists");
+
+    // ローテーション：一致した旧RTを即失効
+    await this.refreshTokenRepository.revokeById(matched.id);
+
+    // 新発行＆保存
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+
+    return {
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      ...tokens,
+    };
   }
 
   private getAccessSecret() {
@@ -155,5 +145,15 @@ export class AuthService {
       tokenHash: hash,
       expiresAt,
     });
+  }
+
+  private async findMatchingRecord(
+    records: { id: string; tokenHash: string }[],
+    raw: string,
+  ): Promise<{ id: string } | null> {
+    for (const r of records) {
+      if (await bcrypt.compare(raw, r.tokenHash)) return { id: r.id };
+    }
+    return null;
   }
 }
