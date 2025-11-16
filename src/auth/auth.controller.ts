@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from "@nestjs/common";
 import type { Request, Response } from "express";
 import { UsersService } from "../users/users.service";
 import { AuthService } from "./auth.service";
@@ -61,6 +70,10 @@ export class AuthController {
   @Post("refresh")
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] || null;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException("Refresh token not found");
+    }
 
     const {
       user,
