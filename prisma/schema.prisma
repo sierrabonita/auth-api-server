@@ -21,6 +21,7 @@ model User {
   name String?
   role Role @default(user)
   emailVerified Boolean @default(false)
+  items Item[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   refreshTokens RefreshToken[]
@@ -42,4 +43,16 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_token")
+}
+
+model Item{
+  id String @id @default(uuid())
+  title String
+  content String?
+  owner User @relation(fields: [ownerId], references: [id])
+  ownerId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+@@index([ownerId])
 }
